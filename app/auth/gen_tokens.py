@@ -1,14 +1,18 @@
 from datetime import datetime, timedelta
 from fastapi import HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer
-from .model import TokenData, User, Token
+from app.resp_models.model import TokenData, User, Token
 from jose import jwt, JWTError
 from decouple import config
-from .auth.authorization import get_user
-
+from .authorization import get_user, authenticate_user
+from fastapi import APIRouter, Depends, Response
+from fastapi.security import OAuth2PasswordRequestForm
 
 JWT_SECRET = config("secret")
 JWT_ALGORITHM = config("algorithm")
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth")
 fake_users_db = {
     "johndoe": {
         "id": 0,
@@ -20,7 +24,30 @@ fake_users_db = {
     }
 }
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth")
+
+router = APIRouter(
+    prefix = "/auth",
+    tags = ["auth"]
+)
+JWT_EXPIRY = config("expiry")
+
+
+@router.post("/", response_model=Token)
+async def login(response : Response, form_data: OAuth2PasswordRequestForm = Depends()):
+    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=int(JWT_EXPIRY))
+    token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    response.set_cookie(key="access_token", value = token.access_token, httponly=True, secure=True)
+    return token
+
 
 def response_token(token : str):
     return Token(access_token=token, token_type="bearer")
