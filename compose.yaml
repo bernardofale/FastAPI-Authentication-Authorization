@@ -1,0 +1,26 @@
+services:
+ mongodb:
+  image: mongo
+  ports:
+   - 27017:27017
+  networks:
+   - mongo-network
+  environment:
+   - MONGO_INITDB_ROOT_USERNAME=bernardofale
+   - MONGO_INITDB_ROOT_PASSWORD=admin
+ mongo-express:
+  image: mongo-express
+  ports:
+   - 8081:8081
+  depends_on:
+   - mongodb
+  networks:
+   - mongo-network
+  environment:
+   - ME_CONFIG_MONGODB_ADMINUSERNAME=bernardofale
+   - ME_CONFIG_MONGODB_ADMINPASSWORD=admin
+   - ME_CONFIG_MONGODB_SERVER=mongodb
+networks:
+ mongo-network:
+  name: mongo-network
+  driver: bridge
